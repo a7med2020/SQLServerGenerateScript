@@ -1,0 +1,17 @@
+﻿[Finance].[GetACHTransactionLog]
+[CC].[GetAllOrganizations]
+[Finance].[GetACHTransactionLogToExport]
+[Finance].[InsertOnlineACHReconciliationFromACHTransactionLog]
+[Finance].[RetrieveOnlineACHReconciliation]
+[Customers].[GenericMatchingCustomers]
+Finance.UpdateOnlineACHReconciliation
+[Finance].[UpdateAfterMatchingOnlineACHReconciliation]
+[Finance].[CleanUpOnlineACHReconciliation]
+[Customers].[GetUnderwritingMembersForManualMatch]
+[Customers].[GetUnderwritingCustomersForManualMatch]
+[Finance].[GetUwMembersForACHReturnReconciliation]
+[Finance].[GetUwCustomersForACHReturnReconciliation]
+[Finance].[GetAgenciesForACHReturnReconciliation]
+Finance.GetACHTransactionLogById
+[Finance].[UpdateACHReturnReconciliation]
+[Finance].[RetrieveACHReturnReconciliation]
