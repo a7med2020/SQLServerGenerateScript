@@ -9,21 +9,16 @@ namespace SQLServerGenerateScript
 {
     public  class Startup
     {
-          static Startup()
-        {
-            var builder = new ConfigurationBuilder()
-                 .SetBasePath(Directory.GetCurrentDirectory())
-                 .AddJsonFile("appsettings.json");
-
-             Configuration = builder.Build();
-        }
-
-        public static IConfiguration Configuration { get; }
         public static IServiceCollection ConfigureServices()
         {
             var services = new ServiceCollection();
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+            IConfiguration configuration = builder.Build();
+
             services.AddTransient<EntryPoint>();
-            services.AddSingleton<IConfiguration>(Configuration);
+            services.AddSingleton<IConfiguration>(configuration);
             //services.AddSingleton<IQuadraticService, QuadraticService>();
             return services;
         }

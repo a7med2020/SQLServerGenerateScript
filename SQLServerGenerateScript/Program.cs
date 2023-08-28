@@ -16,7 +16,6 @@ namespace SQLServerGenerateScript
     {
         static void Main(string[] args)
         {
-            Startup startup = new Startup();
             var services = Startup.ConfigureServices();
             var serviceProvider = services.BuildServiceProvider();
             serviceProvider.GetService<EntryPoint>().Run(args);
