@@ -19,10 +19,14 @@ namespace SQLServerGenerateScript.Business
         {
             switch (scriptType)
             {
+                case ScriptTypeEnum.Table:
+                    return "U";
                 case ScriptTypeEnum.StoredProcedure:
                     return "P";
                 case ScriptTypeEnum.UserDefinedFunction:
                     return "FN";
+                case ScriptTypeEnum.View:
+                    return "V";
                 default:
                     return "";
 
@@ -33,10 +37,14 @@ namespace SQLServerGenerateScript.Business
         {
             switch (scriptType)
             {
+                case ScriptTypeEnum.Table:
+                    return "Table";
                 case ScriptTypeEnum.StoredProcedure:
                     return "PROCEDURE";
                 case ScriptTypeEnum.UserDefinedFunction:
                     return "FUNCTION";
+                case ScriptTypeEnum.View:
+                    return "View";
                 default:
                     return "";
 

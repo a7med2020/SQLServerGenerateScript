@@ -1,1 +1,4 @@
-﻿
+﻿Rating.MarketSegmentRTMVersion
+Rating.MarketSegmentRTMTable
+Policy.MoveMemberCaseAgencyHistoryConfiguration
+Policy.UwMemberMoveHistory

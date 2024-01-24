@@ -1,4 +1,8 @@
-﻿[Finance].[CalcCustomerLastMonthPremium]
-[Finance].[CalcMemberLastMonthPremium]
-[Finance].[ACHReconciliationAmountExceedPremiumXTimes]
-[dbo].[GetPhoneFormatted]
+﻿Policy.MapUwCustomerClassFromMovedMemberToNewMember
+Policy.ValidateEffectiveDateAgainstCustomerCase
+Policy.CheckIfZIPCodeIntheCutomerState
+Policy.IsMemberAlreadyMoved
+Policy.IsCustomerCaseInsuredTypeGroup
+Policy.GetMemberMoveFrom_MemberNumber
+Policy.GetMemberMoveTo_MemberNumber
+Policy.IsMemberExistsInSelectedDestination
