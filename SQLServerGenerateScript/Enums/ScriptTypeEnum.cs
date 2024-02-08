@@ -7,9 +7,9 @@ namespace SQLServerGenerateScript.Enums
     public enum ScriptTypeEnum
     {
         Table,
-        StoredProcedure,
-        UserDefinedFunction,
         View,
+        UserDefinedFunction,
+        StoredProcedure,
         Trigger
     }
 }

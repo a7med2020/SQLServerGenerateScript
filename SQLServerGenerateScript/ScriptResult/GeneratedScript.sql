@@ -19,6 +19,56 @@ GO
                    
 GO
 
+    IF OBJECT_ID('[Policy].[vUwCustomerSummary]', 'V') IS NOT NULL
+    DROP View [Policy].[vUwCustomerSummary]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[MapUwCustomerClassFromMovedMemberToNewMember]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[MapUwCustomerClassFromMovedMemberToNewMember]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[ValidateEffectiveDateAgainstCustomerCase]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[ValidateEffectiveDateAgainstCustomerCase]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[CheckIfZIPCodeIntheCutomerState]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[CheckIfZIPCodeIntheCutomerState]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[IsMemberValidToMove]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[IsMemberValidToMove]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[IsCustomerCaseInsuredTypeGroup]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[IsCustomerCaseInsuredTypeGroup]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[GetMemberMoveFrom_MemberNumber]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[GetMemberMoveFrom_MemberNumber]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[GetMemberMoveTo_MemberNumber]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[GetMemberMoveTo_MemberNumber]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[IsMemberExistsInSelectedDestination]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[IsMemberExistsInSelectedDestination]
+                   
+GO
+
+    IF OBJECT_ID('[Policy].[IsAllMemberCasesTerminated]', 'FN') IS NOT NULL
+    DROP FUNCTION [Policy].[IsAllMemberCasesTerminated]
+                   
+GO
+
     IF OBJECT_ID('[Rating].[DeleteMarketSegmentRTMTableForSpecificVersion]', 'P') IS NOT NULL
     DROP PROCEDURE [Rating].[DeleteMarketSegmentRTMTableForSpecificVersion]
                    
@@ -109,8 +159,8 @@ GO
                    
 GO
 
-    IF OBJECT_ID('[Policy].[UWMemberMove_MoveMovedMemberCase]', 'P') IS NOT NULL
-    DROP PROCEDURE [Policy].[UWMemberMove_MoveMovedMemberCase]
+    IF OBJECT_ID('[Policy].[UwMemberMove_MoveMemberCase]', 'P') IS NOT NULL
+    DROP PROCEDURE [Policy].[UwMemberMove_MoveMemberCase]
                    
 GO
 
@@ -129,8 +179,8 @@ GO
                    
 GO
 
-    IF OBJECT_ID('[Policy].[UWMemberMove_CopyMovedMemberAccount]', 'P') IS NOT NULL
-    DROP PROCEDURE [Policy].[UWMemberMove_CopyMovedMemberAccount]
+    IF OBJECT_ID('[Policy].[UwMemberMove_CreateMemberAccount]', 'P') IS NOT NULL
+    DROP PROCEDURE [Policy].[UwMemberMove_CreateMemberAccount]
                    
 GO
 
@@ -164,33 +214,8 @@ GO
                    
 GO
 
-    IF OBJECT_ID('[Policy].[MapUwCustomerClassFromMovedMemberToNewMember]', 'FN') IS NOT NULL
-    DROP FUNCTION [Policy].[MapUwCustomerClassFromMovedMemberToNewMember]
-                   
-GO
-
-    IF OBJECT_ID('[Policy].[ValidateEffectiveDateAgainstCustomerCase]', 'FN') IS NOT NULL
-    DROP FUNCTION [Policy].[ValidateEffectiveDateAgainstCustomerCase]
-                   
-GO
-
-    IF OBJECT_ID('[Policy].[CheckIfZIPCodeIntheCutomerState]', 'FN') IS NOT NULL
-    DROP FUNCTION [Policy].[CheckIfZIPCodeIntheCutomerState]
-                   
-GO
-
-    IF OBJECT_ID('[Policy].[IsMemberAlreadyMoved]', 'FN') IS NOT NULL
-    DROP FUNCTION [Policy].[IsMemberAlreadyMoved]
-                   
-GO
-
-    IF OBJECT_ID('[Policy].[IsCustomerCaseInsuredTypeGroup]', 'FN') IS NOT NULL
-    DROP FUNCTION [Policy].[IsCustomerCaseInsuredTypeGroup]
-                   
-GO
-
-    IF OBJECT_ID('[Policy].[vUwCustomerSummary]', 'V') IS NOT NULL
-    DROP View [Policy].[vUwCustomerSummary]
+    IF OBJECT_ID('[Customers].[GetUwMemberByPrimaryKey]', 'P') IS NOT NULL
+    DROP PROCEDURE [Customers].[GetUwMemberByPrimaryKey]
                    
 GO
 ---===================================================================================================================================
@@ -248,12 +273,13 @@ BEGIN
 END;
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE FUNCTION [Policy].[ValidateEffectiveDateAgainstCustomerCase]
+create FUNCTION [Policy].[ValidateEffectiveDateAgainstCustomerCase]
 (
     @UwCustomerCaseId INT,
 	@EffectiveDate DATETIME
@@ -286,6 +312,7 @@ END;
 
  
  
+
 
 GO
 SET ANSI_NULLS ON
@@ -324,38 +351,68 @@ END;
  
  
 
+
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE FUNCTION [Policy].[IsMemberAlreadyMoved]
+CREATE FUNCTION [Policy].[IsMemberValidToMove]
 (
     @OriginalUwMemberId INT
 )
 RETURNS BIT
 AS
 BEGIN
- 
+
     DECLARE @Valid BIT;
+    DECLARE @LastFrom_UwMemberMoveHistoryId INT,
+            @IsMoveBack BIT
 
-    --SET @Valid = 0; 
+    SET @Valid = 0;
 
-    --IF EXISTS
-    --(
-    --     SELECT UwMemberMoveHistoryId FROM Policy.UwMemberMoveHistory WHERE OriginalUwMemberID = 0
-    --)
-    --BEGIN
-      SET @Valid = 1
-    --END
+    SET @LastFrom_UwMemberMoveHistoryId =
+    (
+        SELECT TOP 1
+               ummh_from.UwMemberMoveHistoryId
+        FROM [Policy].[UwMemberMoveHistory] AS ummh_from
+        WHERE ummh_from.OriginalUwMemberId = @OriginalUwMemberId AND IsMoveBack = 0 AND ummh_from.[Status] = 1 
+        ORDER BY UwMemberMoveHistoryId DESC
+    )
 
- 
+    IF (@LastFrom_UwMemberMoveHistoryId IS NOT NULL)
+    BEGIN
+        IF EXISTS
+        (
+            SELECT UwMemberMoveHistoryId
+            FROM Policy.UwMemberMoveHistory AS ummh_to
+            WHERE ummh_to.NewUwMemberId = @OriginalUwMemberId
+                  AND ummh_to.UwMemberMoveHistoryId > @LastFrom_UwMemberMoveHistoryId
+                  AND ummh_to.IsMoveBack = 1
+				  AND ummh_to.[Status] = 1 
+        )
+        BEGIN
+            SET @Valid = 1
+        END
+        ELSE
+        BEGIN
+            SET @Valid = 0
+        END
+    END
+    ELSE
+    BEGIN
+        SET @Valid = 1
+    END
+
+
+
+
     RETURN @Valid;
 
 END;
 
- 
- 
+
+
 
 GO
 SET ANSI_NULLS ON
@@ -406,6 +463,173 @@ END
 
 
 
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE FUNCTION [Policy].[GetMemberMoveFrom_MemberNumber]
+(
+    @UwMemberId INT
+)
+RETURNS VARCHAR(22)
+AS
+BEGIN
+
+    DECLARE @MemberNumber VARCHAR(22)
+
+    IF EXISTS
+    (
+        SELECT ummh.UwMemberMoveHistoryId FROM Policy.UwMemberMoveHistory AS ummh
+		WHERE ummh.NewUwMemberId = @UwMemberId AND ummh.[Status] = 1
+    )
+    BEGIN
+           SELECT @MemberNumber = (
+		       SELECT TOP 1 um.MemberNumber FROM Policy.UwMemberMoveHistory AS ummh 
+			   JOIN Customers.UwMember AS um ON um.UwMemberId = ummh.OriginalUwMemberId
+			   WHERE ummh.NewUwMemberId = @UwMemberId 
+			   ORDER BY ummh.CreationDate DESC
+		   )
+    END
+	ELSE
+	  BEGIN
+           SELECT @MemberNumber = (SELECT TOP 1
+                                        uwm.MemberNumber
+                              FROM      dbo.UwMemberMoveMapping AS mmm
+                                        INNER JOIN Customers.UwMember AS uwm ON mmm.ExchangeUwMemberID = uwm.UwMemberId
+                              WHERE     mmm.OffExchangeUwMemberID = @UwMemberId
+                              ORDER BY  mmm.CreationDate DESC
+		   )
+    END
+	    
+
+    RETURN @MemberNumber
+END
+
+
+
+
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE FUNCTION [Policy].[GetMemberMoveTo_MemberNumber]
+(
+    @UwMemberId INT
+)
+RETURNS VARCHAR(22)
+AS
+BEGIN
+
+    DECLARE @MemberNumber VARCHAR(22)
+
+    IF EXISTS
+    (
+        SELECT ummh.UwMemberMoveHistoryId FROM Policy.UwMemberMoveHistory AS ummh
+		WHERE ummh.OriginalUwMemberId = @UwMemberId AND ummh.[Status] = 1
+    )
+    BEGIN
+           SELECT @MemberNumber = (
+		       SELECT TOP 1 um.MemberNumber FROM Policy.UwMemberMoveHistory AS ummh 
+			   JOIN Customers.UwMember AS um ON um.UwMemberId = ummh.NewUwMemberId
+			   WHERE ummh.OriginalUwMemberId = @UwMemberId 
+			   ORDER BY ummh.CreationDate DESC
+		   )
+    END
+	ELSE
+	  BEGIN
+           SELECT @MemberNumber = (SELECT TOP 1
+                                        uwm.MemberNumber
+                              FROM      dbo.UwMemberMoveMapping AS mmm
+                                        INNER JOIN Customers.UwMember AS uwm ON mmm.OffExchangeUwMemberID = uwm.UwMemberId
+                              WHERE     mmm.ExchangeUwMemberID = @UwMemberId
+                              ORDER BY  mmm.CreationDate DESC
+		   )
+    END
+	    
+
+    RETURN @MemberNumber
+END
+
+
+
+
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+create FUNCTION [Policy].[IsMemberExistsInSelectedDestination]
+(
+    @MembershipNumber VARCHAR(22),
+    @NewUwCustomerId INT
+)
+RETURNS BIT
+AS
+BEGIN
+ 
+    DECLARE @Exists BIT;
+
+    SET @Exists = 0; 
+
+    IF EXISTS
+    (
+          SELECT UwMemberId
+			FROM Customers.UwMember
+			WHERE UwCustomerId = @NewUwCustomerId
+				  AND MembershipNumber = @MembershipNumber
+    )  
+    BEGIN
+      SET @Exists = 1
+    END
+
+ 
+    RETURN @Exists;
+
+END;
+
+ 
+ 
+
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE FUNCTION [Policy].[IsAllMemberCasesTerminated]
+(
+    @UwMemberId INT
+)
+RETURNS BIT
+AS
+BEGIN
+ 
+    DECLARE @Valid BIT;
+
+    SET @Valid = 1; 
+
+    IF EXISTS
+    (
+         SELECT umc.UwMemberCaseId FROM Policy.UwMemberCase AS umc WHERE umc.UwMemberId = @UwMemberId AND umc.DeactivationDate IS NULL AND  umc.UwMemberCaseStatusId <> 4
+    )
+    BEGIN
+        SET @Valid = 0
+    END
+
+ 
+    RETURN @Valid;
+
+END;
+
+ 
+ 
+
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -435,6 +659,7 @@ FROM
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -461,8 +686,8 @@ CREATE TABLE [Rating].[MarketSegmentRTMTable](
 	[MarketSegmentRTMVersionId] [int] NULL,
 	[Year] [numeric](4, 0) NOT NULL,
 	[MarketSegmentId] [int] NOT NULL,
-	[FormNbr] [varchar](255) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
-	[State] [varchar](2) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[FormNumber] [varchar](255) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[StateCode] [varchar](2) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 	[ZIP3] [varchar](3) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 	[RTMFactor] [decimal](18, 5) NOT NULL,
 	[CreatedBy] [varchar](20) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
@@ -490,12 +715,9 @@ GO
 CREATE TABLE [Policy].[UwMemberMoveHistory](
 	[UwMemberMoveHistoryId] [int] IDENTITY(1,1) NOT NULL,
 	[OriginalUwMemberId] [int] NOT NULL,
-	[NewUwCustomerId] [int] NOT NULL,
 	[MembershipNumber] [varchar](22) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
-	[NewZipCode] [varchar](5) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
-	[NewUwCustomerCaseIDs] [varchar](150) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 	[NewUwMemberId] [int] NULL,
-	[NewUwMemberNumber] [varchar](22) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[IsMoveBack] [bit] NOT NULL,
 	[Status] [bit] NOT NULL,
 	[CreatedBy] [varchar](20) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 	[CreationDate] [datetime] NOT NULL
@@ -528,6 +750,7 @@ END;
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -552,6 +775,7 @@ BEGIN
 
     SET NOCOUNT OFF;
 END;
+
 
 
 
@@ -581,6 +805,7 @@ END;
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -592,8 +817,8 @@ CREATE PROCEDURE [Rating].[InsertMarketSegmentRTMTable]
     @MarketSegmentRTMVersionId int,
     @Year numeric,
     @MarketSegmentId int,
-    @FormNbr varchar(255),
-    @State varchar(2),
+    @FormNumber varchar(255),
+    @StateCode varchar(2),
     @ZIP3 varchar(3),
     @RTMFactor DECIMAL(16,5),
 	@CreatedBy varchar(20),
@@ -607,8 +832,8 @@ BEGIN
             ( [MarketSegmentRTMVersionId],
               [Year],
               [MarketSegmentId],
-              [FormNbr],
-              [State],
+              [FormNumber],
+              [StateCode],
               [ZIP3],
               [RTMFactor],
 			  [CreatedBy],
@@ -616,8 +841,8 @@ BEGIN
         VALUES ( @MarketSegmentRTMVersionId,
                 @Year,
                 @MarketSegmentId,
-                @FormNbr,
-                @State,
+                @FormNumber,
+                @StateCode,
                 @ZIP3,
                 @RTMFactor,
 				@CreatedBy,
@@ -631,6 +856,7 @@ BEGIN
 
     SET NOCOUNT OFF;
 END;
+
 
 
 
@@ -681,13 +907,14 @@ END;
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-create PROCEDURE [Rating].[RetrieveMarketSegmentRTMTable]
+CREATE PROCEDURE [Rating].[RetrieveMarketSegmentRTMTable]
     @MarketSegmentRTMVersionId int,
     @PageNumber INT=1,
     @PageSize INT=NULL,
@@ -718,8 +945,8 @@ BEGIN
                 [Year],
                 [MarketSegmentId],
                 [MarketSegmentName],
-                [FormNbr],
-                [State],
+                [FormNumber],
+                [StateCode],
                 [ZIP3],
                 [RTMFactor],
 				[CreatedBy],
@@ -732,8 +959,8 @@ BEGIN
                         [Year],
                         [MarketSegmentId],
 						MarketingSegment.[Name] MarketSegmentName,
-                        [FormNbr],
-                        MarketSegmentRTMTable.[State],
+                        [FormNumber],
+                        MarketSegmentRTMTable.[StateCode],
                         [ZIP3],
                         [RTMFactor],
 						[CreatedBy],
@@ -743,8 +970,8 @@ BEGIN
                          When 'MarketSegmentRTMVersionId' Then Row_Number() Over(Order by MarketSegmentRTMVersionId ASC)
                          When 'Year' Then Row_Number() Over(Order by Year ASC)
                          When 'MarketSegmentId' Then Row_Number() Over(Order by MarketSegmentId ASC)
-                         When 'FormNbr' Then Row_Number() Over(Order by FormNbr ASC)
-                         When 'State' Then Row_Number() Over(Order by MarketSegmentRTMTable.[State] ASC)
+                         When 'FormNumber' Then Row_Number() Over(Order by FormNumber ASC)
+                         When 'StateCode' Then Row_Number() Over(Order by MarketSegmentRTMTable.[StateCode] ASC)
                          When 'ZIP3' Then Row_Number() Over(Order by ZIP3 ASC)
                          When 'RTMFactor' Then Row_Number() Over(Order by RTMFactor ASC)
                         End as RowNum
@@ -770,8 +997,8 @@ RowNum >= @LowerLimit  and
                 [Year],
                 [MarketSegmentId],
                 [MarketSegmentName],
-                [FormNbr],
-                [State],
+                [FormNumber],
+                [StateCode],
                 [ZIP3],
                 [RTMFactor]  
 				[CreatedBy],
@@ -784,8 +1011,8 @@ RowNum >= @LowerLimit  and
                         [Year],
                         [MarketSegmentId],
 						MarketingSegment.[Name] MarketSegmentName,
-                        [FormNbr],
-                        MarketSegmentRTMTable.[State],
+                        [FormNumber],
+                        MarketSegmentRTMTable.[StateCode],
                         [ZIP3],
                         [RTMFactor],
 						[CreatedBy],
@@ -795,8 +1022,8 @@ RowNum >= @LowerLimit  and
                          When 'MarketSegmentRTMVersionId' Then Row_Number() Over(Order by MarketSegmentRTMVersionId DESC)
                          When 'Year' Then Row_Number() Over(Order by Year DESC)
                          When 'MarketSegmentId' Then Row_Number() Over(Order by MarketSegmentId DESC)
-                         When 'FormNbr' Then Row_Number() Over(Order by FormNbr DESC)
-                         When 'State' Then Row_Number() Over(Order by MarketSegmentRTMTable.[State] DESC)
+                         When 'FormNumber' Then Row_Number() Over(Order by FormNumber DESC)
+                         When 'StateCode' Then Row_Number() Over(Order by MarketSegmentRTMTable.[StateCode] DESC)
                          When 'ZIP3' Then Row_Number() Over(Order by ZIP3 DESC)
                          When 'RTMFactor' Then Row_Number() Over(Order by RTMFactor DESC)
                         End as RowNum
@@ -814,6 +1041,7 @@ RowNum >= @LowerLimit  and
                 RowNum
         End
 End
+
 
 
 
@@ -969,6 +1197,7 @@ End
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -1004,6 +1233,7 @@ BEGIN
 
     SET NOCOUNT OFF;
 END;
+
 
 
 
@@ -1061,6 +1291,7 @@ END
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -1100,6 +1331,7 @@ BEGIN
     
     SET NOCOUNT OFF
 END
+
 
 
 
@@ -1312,6 +1544,7 @@ END
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -1331,9 +1564,11 @@ BEGIN
 			UNION ALL
 			SELECT DATEADD(MONTH, 1, DateValue) FROM DateCTE WHERE DateValue < dbo.GetFirstMonthDay(DATEADD(MONTH, @MonthsInpastFuture, GETDATE()))
 		)
-		SELECT FORMAT(DateValue, 'MM/dd/yyyy') AS MonthDate FROM DateCTE
+		SELECT FORMAT(DateValue, 'MM/dd/yyyy') AS MonthDate FROM DateCTE ORDER BY DateValue DESC
 		OPTION (MAXRECURSION 0); -- Enable unlimited recursion, if needed
+
 END
+
 
 
 
@@ -1371,7 +1606,7 @@ BEGIN
 	 SELECT um.MemberNumber PrimaryMemberNumber,
                uc.CustomerNumber GroupNumber,
                uc.Name GroupName,
-               umzc.StateCode AS [State],
+               umzc.StateCode AS [StateCode],
 			   mrktsgmnt.[Name] MarketSegment,
 			   vpv.CoverageName Coverage,
 			   FORMAT(CAST('10/01/2023' AS DATETIME) , 'MM/dd/yyyy') RenewalProcessingMonth,
@@ -1415,8 +1650,8 @@ BEGIN
 				 JOIN Rating.MarketSegmentRTMTable RTMTable ON  
         RTMTable.Year = DATEPART(YEAR, InitialCase.EffectiveDate)
        AND RTMTable.MarketSegmentId = mrktsgmnt.MarketingSegmentId
-       AND RTMTable.FormNbr = vpv.FormNumber
-       AND (RTMTable.[State] = 'DF'OR RTMTable.[State] = umzc.StateCode)
+       AND RTMTable.FormNumber = vpv.FormNumber
+       AND (RTMTable.[StateCode] = 'DF'OR RTMTable.[StateCode] = umzc.StateCode)
        AND (RTMTable.ZIP3 = SUBSTRING(umzc.ZipCode, 1, 3) OR RTMTable.ZIP3 IS NULL)
       JOIN Rating.MarketSegmentRTMVersion RTMVersion  
     ON RTMVersion.MarketSegmentRTMVersionId = RTMTable.MarketSegmentRTMVersionId
@@ -1454,7 +1689,7 @@ BEGIN
 SELECT DISTINCT PrimaryMemberNumber,
        GroupNumber,
        GroupName,
-       [State],
+       [StateCode],
        MarketSegment,
        Coverage,
        RenewalProcessingMonth,
@@ -1467,7 +1702,7 @@ FROM (
     SELECT  PrimaryMemberNumber,
             GroupNumber,
             GroupName,
-             [State],
+             [StateCode],
             MarketSegment,
             Coverage,
             RenewalProcessingMonth,
@@ -1479,7 +1714,7 @@ FROM (
             When 'PrimaryMemberNumber' Then Row_Number() Over(Order by PrimaryMemberNumber ASC)
             When 'GroupNumber' Then Row_Number() Over(Order by GroupNumber ASC)
             When 'GroupName' Then Row_Number() Over(Order by GroupName ASC)
-            When 'State' Then Row_Number() Over(Order by [State] ASC)
+            When 'StateCode' Then Row_Number() Over(Order by [StateCode] ASC)
             When 'MarketSegment' Then Row_Number() Over(Order by MarketSegment ASC)
             When 'Coverage' Then Row_Number() Over(Order by Coverage ASC)
             When 'RenewalProcessingMonth' Then Row_Number() Over(Order by RenewalProcessingMonth ASC)
@@ -1505,7 +1740,7 @@ RowNum >= @LowerLimit  and
 		 SELECT DISTINCT PrimaryMemberNumber,
        GroupNumber,
        GroupName,
-       [State],
+       [StateCode],
        MarketSegment,
        Coverage,
        RenewalProcessingMonth,
@@ -1518,7 +1753,7 @@ FROM (
     SELECT  PrimaryMemberNumber,
             GroupNumber,
             GroupName,
-            [State],
+            [StateCode],
             MarketSegment,
             Coverage,
             RenewalProcessingMonth,
@@ -1530,7 +1765,7 @@ FROM (
             When 'PrimaryMemberNumber' Then Row_Number() Over(Order by PrimaryMemberNumber DESC)
             When 'GroupNumber' Then Row_Number() Over(Order by GroupNumber DESC)
             When 'GroupName' Then Row_Number() Over(Order by GroupName DESC)
-            When 'State' Then Row_Number() Over(Order by [State] DESC)
+            When 'StateCode' Then Row_Number() Over(Order by [StateCode] DESC)
             When 'MarketSegment' Then Row_Number() Over(Order by MarketSegment DESC)
             When 'Coverage' Then Row_Number() Over(Order by Coverage DESC)
             When 'RenewalProcessingMonth' Then Row_Number() Over(Order by RenewalProcessingMonth DESC)
@@ -1554,6 +1789,7 @@ END;
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -1569,6 +1805,7 @@ SELECT c.[Name] Coverage,
 	   um.UwCustomerId CurrentUwCustomerId,
 	   um.MembershipNumber ,
 	   um.ZipCode UwMemberZIPCode,
+	   CASE WHEN uc.MarketingSegmentId = 6 THEN cast (1 AS BIT) ELSE CAST (0 AS BIT) END IsExchangeMember,
        UwMemberCase.UwMemberCaseId,
        UwMemberCase.NetworkId,
        p.PlanId PlanId,
@@ -1633,6 +1870,7 @@ end
  
 
  
+
 
 
 GO
@@ -1701,6 +1939,7 @@ END
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -1712,6 +1951,12 @@ CREATE PROCEDURE [Policy].[GetMemberDetailsForMemberMove] @UwMemberId INT
 AS
 BEGIN
 
+    DECLARE @PrimaryMemberName VARCHAR(150);
+    DECLARE @PrimaryMemberNumber VARCHAR(22);
+    DECLARE @CustomerName VARCHAR(400);
+    DECLARE @CustomerNumber VARCHAR(22);
+    DECLARE @ZipCode VARCHAR(5);
+	
     DECLARE @UwCustomerId INT;
     DECLARE @Balance MONEY = 0;
     DECLARE @UwMemberPTD SMALLDATETIME = NULL;
@@ -1719,6 +1964,15 @@ BEGIN
     DECLARE @HasSpouce BIT = 0;
     DECLARE @IsCalCobra BIT = 0;
 
+
+	SELECT  @PrimaryMemberName = um.FirstName + ' ' + um.LastName,
+			@PrimaryMemberNumber = um.MemberNumber,
+			@ZipCode = um.ZipCode,
+			@CustomerName = uc.[Name],
+			@CustomerNumber = uc.CustomerNumber
+	FROM Customers.UwMember AS um
+	JOIN Customers.UwCustomer AS uc ON uc.UwCustomerId = um.UwCustomerId
+	WHERE um.UwMemberId = @UwMemberId
 
 
     SET @Balance =
@@ -1797,13 +2051,20 @@ BEGIN
         SET @IsCalCobra = 0;
     END
 
-    SELECT (case WHEN @Balance IS NULL THEN 0 ELSE @Balance End)  AS UwMemberBalance,
+    SELECT  @PrimaryMemberName AS PrimaryMemberName,
+			@PrimaryMemberNumber AS PrimaryMemberNumber,
+			@ZipCode AS ZipCode,
+			@CustomerName AS CustomerName,
+			@CustomerNumber AS CustomerNumber,
+	      (case WHEN @Balance IS NULL THEN 0 ELSE @Balance End)  AS UwMemberBalance,
            @UwMemberPTD AS UwMemberPTD,
            @DependentNo AS UwmemberDependentNo,
            @HasSpouce AS IsUwmemberHasSpouce,
            @IsCalCobra AS IsUwmemberCalCobra
 
+
 END
+
 
 
 GO
@@ -1959,7 +2220,7 @@ BEGIN
         @MailingAddressSameAsCoverageAddress = um.MailingAddressSameAsCoverageAddress,
         @MailingAddress1 = um.MailingAddress1,
         @MailingAddress2 = um.MailingAddress2,
-        @MailingZipCode = um.MailingZipCode,
+        @MailingZipCode = @NewZipCode,  
         -- WI# 1501: Address discrepancies between HIAS and 834s | HIAS Code Change (Columns) BEGIN
         @CoverageAddressChangedByHIAS = um.CoverageAddressChangedByHIAS,
         @CoverageAddressLastChangeDateByHIAS = um.CoverageAddressLastChangeDateByHIAS,
@@ -2029,7 +2290,7 @@ BEGIN
                                       @MailingAddressSameAsCoverageAddress,
                                       @MailingAddress1,
                                       @MailingAddress2,
-                                      @MailingZipCode, /*WI# 1501 - BEGIN*/
+                                      @MailingZipCode,  
                                       @CoverageAddressChangedByHIAS,
                                       @CoverageAddressLastChangeDateByHIAS,
                                       @MailingAddressChangedByHIAS,
@@ -2184,7 +2445,7 @@ BEGIN
         DEALLOCATE depcur
 
 
-        SET @Details = 'Primary Member number:'+ @OriginalUwMemberNumber +' has been moved from Customer Number "' + @OriginalCustomerNumber + '" to Customer Number "' + @NewCustomerNumber + '" with new member number :' + @NewUwMemberNumber;
+        SET @Details = 'Primary member number:'+ @OriginalUwMemberNumber +' has been moved from customer number: ' + @OriginalCustomerNumber + ' to customer number: ' + @NewCustomerNumber + ' with new member number:' + @NewUwMemberNumber;
         -- Original UwCustomer Comment
         EXEC Underwriting.InsertAppComment @AppCommentId = 0,                 -- int
                                            @AppId = NULL,                     -- int
@@ -2219,6 +2480,7 @@ BEGIN
     
 END;
  
+
 
 
 GO
@@ -2263,7 +2525,11 @@ DECLARE  @AccountID INT =
                     FROM    Policy.UwMemberCase AS umc
                     WHERE   UwMemberCaseId = @OriginalUwMemberCaseID
 
-        SELECT  @Plan = p.Name + ' - ' + ISNULL(ac.FileAssemblerSuffix, '')  FROM Policy.UwMemberCase AS umc JOIN Policy.UwCustomerCase AS ucc		ON ucc.UwCustomerCaseId = umc.UwCustomerCaseId JOIN Underwriting.AppCase AS ac		ON ac.AppCaseId = ucc.AppCaseId JOIN Quoting.Quote AS q ON q.QuoteId = ac.QuoteId 		JOIN Quoting.QuotePlanVersion AS qpv ON qpv.QuoteId = q.QuoteId JOIN Plans.PlanVersion AS pv ON pv.PlanVersionId = qpv.PlanVersionId		JOIN Plans.[Plan] AS p ON p.PlanId = pv.PlanId WHERE umc.UwMemberCaseId=@OriginalUwMemberCaseID
+        SELECT  @Plan = p.Name + ' - ' + ISNULL(ac.FileAssemblerSuffix, '')  FROM Policy.UwMemberCase AS umc JOIN Policy.UwCustomerCase AS ucc
+		ON ucc.UwCustomerCaseId = umc.UwCustomerCaseId JOIN Underwriting.AppCase AS ac
+		ON ac.AppCaseId = ucc.AppCaseId JOIN Quoting.Quote AS q ON q.QuoteId = ac.QuoteId 
+		JOIN Quoting.QuotePlanVersion AS qpv ON qpv.QuoteId = q.QuoteId JOIN Plans.PlanVersion AS pv ON pv.PlanVersionId = qpv.PlanVersionId
+		JOIN Plans.[Plan] AS p ON p.PlanId = pv.PlanId WHERE umc.UwMemberCaseId=@OriginalUwMemberCaseID
 
 
 		SET @Details = 'Primary Case ' + CAST(@number AS VARCHAR) + ' ' + @Plan + ' has been deactivated on ' + CONVERT(VARCHAR, @DeactivationDate, 101)
@@ -2428,6 +2694,7 @@ END
 End
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -2435,7 +2702,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 
-CREATE PROCEDURE [Policy].[UwMemberMove_MoveMovedMemberCase]
+CREATE PROCEDURE [Policy].[UwMemberMove_MoveMemberCase]
     @OriginalUwMemberId INT,
     @OriginalUwMemberCaseID INT,
     @NewUwMemberID INT,
@@ -2482,8 +2749,11 @@ BEGIN
         @OriginalDeactivationDate DATETIME,
         @OriginalDeactivationReasonId TINYINT,
         @PriorCoverageInsuranceCarrierName VARCHAR(50),
-        @OtherCoverageInsuranceCarrierName VARCHAR(50),
-		@IsFromHIAS bit,		@ExchangeAssignedPolicyNumber VARCHAR(100),		@ExchangeCaseNumber VARCHAR(100),		@DeactivationExchangeCaseNumber VARCHAR(100);
+        @OtherCoverageInsuranceCarrierName VARCHAR(50)
+		--@IsFromHIAS bit,
+		--@ExchangeAssignedPolicyNumber VARCHAR(100),
+		--@ExchangeCaseNumber VARCHAR(100),
+		--@DeactivationExchangeCaseNumber VARCHAR(100);
 
 
     DECLARE @MajorDentalEffectiveDate DATETIME,
@@ -2547,8 +2817,11 @@ BEGIN
            @DeactivatedBy = NewCustCase.DeactivatedBy,
            @DeactivationReasonId = NewCustCase.DeactivationReasonId,
            @PriorCoverageInsuranceCarrierName = umc.PriorCoverageInsuranceCarrierName,
-           @OtherCoverageInsuranceCarrierName = umc.OtherCoverageInsuranceCarrierName,
-		   @IsFromHIAS = umc.IsFromHIAS,		   @ExchangeAssignedPolicyNumber = umc.ExchangeAssignedPolicyNumber,		   @ExchangeCaseNumber = umc.ExchangeCaseNumber,		   @DeactivationExchangeCaseNumber = umc.DeactivationExchangeCaseNumber
+           @OtherCoverageInsuranceCarrierName = umc.OtherCoverageInsuranceCarrierName
+		   --@IsFromHIAS = umc.IsFromHIAS,
+		   --@ExchangeAssignedPolicyNumber = umc.ExchangeAssignedPolicyNumber,
+		   --@ExchangeCaseNumber = umc.ExchangeCaseNumber,
+		   --@DeactivationExchangeCaseNumber = umc.DeactivationExchangeCaseNumber
     FROM Customers.UwMember AS OldMember
         LEFT JOIN Policy.UwMemberCase AS umc
             ON OldMember.UwMemberId = umc.UwMemberId
@@ -2575,7 +2848,11 @@ BEGIN
         SET @number = NULL;
         SET @Details = NULL;
 
-        SELECT @number = 1;
+               SELECT  @number = MAX(Number)
+                    FROM    Policy.UwMemberCase  AS umc WITH(NOLOCK)
+                    WHERE   UwMemberId = @NewUwMemberID AND CoverageID = @CoverageID
+                    SET @number = @number + 1
+                    SET @number = ISNULL(@number, 1)
 
         SET @Details
             = 'Primary Case ' + CAST(@number AS VARCHAR) + ' ' + @Plan + ' has been added effective from '
@@ -2646,14 +2923,17 @@ BEGIN
                                        @OtherReason = @OtherReason,
                                        @BasicDentalEffectiveDate = @BasicDentalEffectiveDate,
                                        @BasicDentalPriorDuration = @BasicDentalPriorDuration,
-                                       @BasicDentalWaitingPeriodMonths = @BasicDentalWaitingPeriodMonths,      -- nvarchar(255)
-									   @IsFromHIAS = @IsFromHIAS,									   @ExchangeAssignedPolicyNumber = @ExchangeAssignedPolicyNumber,									   @ExchangeCaseNumber = @ExchangeCaseNumber,									   @DeactivationExchangeCaseNumber = @DeactivationExchangeCaseNumber;
+                                       @BasicDentalWaitingPeriodMonths = @BasicDentalWaitingPeriodMonths      -- nvarchar(255)
+									   --@IsFromHIAS = @IsFromHIAS,
+									   --@ExchangeAssignedPolicyNumber = @ExchangeAssignedPolicyNumber,
+									   --@ExchangeCaseNumber = @ExchangeCaseNumber,
+									   --@DeactivationExchangeCaseNumber = @DeactivationExchangeCaseNumber;
 
 
 
-        EXEC Policy.UWMemberMove_CopyMovedMemberAccount @NewUwMemberId = @NewUwMemberID,             -- int
-                                                        @NewUwCustomerCaseID = @NewUwCustomerCaseID, -- int
-                                                        @MovedByUserName = @MovedByUserName;         -- varchar(50)
+        EXEC Policy.UwMemberMove_CreateMemberAccount @NewUwMemberId = @NewUwMemberID,             -- int
+                                                     @NewUwCustomerCaseID = @NewUwCustomerCaseID, -- int
+                                                     @MovedByUserName = @MovedByUserName;         -- varchar(50)
 
         EXEC [Policy].[UwMemberMove_MoveMemberCaseAgencyHistory] @OriginalUwMemberCaseID = @OriginalUwMemberCaseID, -- int
                                                                  @NewUwMemberCaseID = @NewUwMemberCaseID;           -- int
@@ -2720,17 +3000,17 @@ BEGIN
         /*creat the depenedent cases*/
         DECLARE depcurr CURSOR FAST_FORWARD READ_ONLY FOR
         SELECT Newdep.UwMemberDependentId,
-               MajorDentalEffectiveDate,
-               MajorDentalPriorDuration,
-               MajorDentalWaitingPeriodMonths,
-               OrthoEffectiveDate,
-               OrthoPriorDuration,
-               OrthoWaitingPeriodMonths,
-               BasicDentalEffectiveDate,
-               BasicDentalPriorDuration,
-               BasicDentalWaitingPeriodMonths, --,
-               PriorCoverageInsuranceCarrierName,
-               OtherCoverageInsuranceCarrierName,
+               Orgumdc.MajorDentalEffectiveDate,
+               Orgumdc.MajorDentalPriorDuration,
+               Orgumdc.MajorDentalWaitingPeriodMonths,
+               Orgumdc.OrthoEffectiveDate,
+               Orgumdc.OrthoPriorDuration,
+               Orgumdc.OrthoWaitingPeriodMonths,
+               Orgumdc.BasicDentalEffectiveDate,
+               Orgumdc.BasicDentalPriorDuration,
+               Orgumdc.BasicDentalWaitingPeriodMonths, --,
+               Orgumdc.PriorCoverageInsuranceCarrierName,
+               Orgumdc.OtherCoverageInsuranceCarrierName,
 			   NewCustCase.UwCustomerCaseId
         --Newdep.DependentStatusId
         FROM Customers.UwMemberDependent AS Newdep
@@ -2739,24 +3019,20 @@ BEGIN
                    AND Newdep.BirthDate = OrgDep.BirthDate
 				    JOIN Policy.UwCustomerCase AS NewCustCase
             ON NewCustCase.UwCustomerCaseId = @NewUwCustomerCaseID
-             LEFT JOIN Policy.UwMemberDependentCase AS Orgumdc
-                ON OrgDep.UwMemberDependentId = Orgumdc.UwMemberDependentId
+           OUTER APPLY
+					(
+						SELECT TOP 1
+							    *
+						FROM Policy.UwMemberDependentCase umdc
+						WHERE  umdc.UwMemberDependentId = OrgDep.UwMemberDependentId
+							    AND umdc.UwMemberCaseId = @OriginalUwMemberCaseID
+                            ORDER BY umdc.EffectiveDate DESC
+					) Orgumdc
 			
         WHERE Newdep.UwMemberId = @NewUwMemberID
               AND OrgDep.UwMemberId = @OriginalUwMemberId
 			  AND Newdep.DependentStatusId = 1 --aactive
-              AND (UwMemberDependentCaseId =
-              (
-                  SELECT TOP 1
-                         innerumdc.UwMemberDependentCaseId
-                  FROM Policy.UwMemberDependentCase innerumdc
-                  WHERE innerumdc.UwMemberDependentId = OrgDep.UwMemberDependentId
-                        AND UwMemberCaseId = @OriginalUwMemberCaseID
-                  ORDER BY innerumdc.EffectiveDate DESC
-              ) OR UwMemberDependentCaseId IS NULL OR @OriginalUwMemberCaseID = 0);
-			 --  (@OriginalUwMemberCaseID = 0) New customer has this coverage, but the Original customer does not
-			 --  (UwMemberDependentCaseId IS NULL) The new customer and the Original customer have this coverage, but it's not added to the Original dependent
-
+              
         OPEN depcurr;
 
         FETCH NEXT FROM depcurr
@@ -2780,7 +3056,12 @@ BEGIN
             SET @number = NULL;
             SET @DetailsDepenedentCase = NULL;
 
-            SELECT @number = 1;
+             SELECT  @number = MAX(umdc.Number)
+                            FROM    Policy.UwMemberDependentCase AS umdc  WITH(NOLOCK)
+							JOIN Policy.UwMemberCase AS umc ON umdc.UwMemberCaseId = umc.UwMemberCaseId
+                            WHERE   UwMemberDependentId = @UwMemberDependentId AND umc.CoverageID = @CoverageID
+                            SET @number = @number + 1
+                            SET @number = ISNULL(@number, 1)
 
 
             SET @DetailsDepenedentCase
@@ -2955,6 +3236,7 @@ END;
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -2994,6 +3276,11 @@ BEGIN
     FROM Finance.Account AS NewAcc
     WHERE NewAcc.UwMemberId = @NewUwMemberID;
 
+    SELECT @NewACHAccountId = ACHAccountId
+    FROM Finance.ACHAccount
+    WHERE AccountId = @NewAccountId
+
+
     IF (@OriginalACHAccountId IS NOT NULL)
     BEGIN
 
@@ -3018,19 +3305,40 @@ BEGIN
                 WHERE OriginalAcc.UwMemberId = @OriginalUwMemberId
             );
 
-            -- Creating a new ACHAccount
-            EXEC Finance.InsertACHAccount @abaNumber = @AbaNumber,                   -- varchar(9)
-                                          @accountId = @NewAccountId,                -- int
-                                          @accountNumber = @AccountNumber,           -- varchar(17)
-                                          @accountTypeId = @AccountTypeId,           -- tinyint
-                                          @achAccountId = @NewACHAccountId OUT,      -- int
-                                          @achStatusId = @ACHStatusId,               -- tinyint
-                                          @bankAccountTypeId = @BankAccountTypeId,   -- tinyint
-                                          @isSigned = @IsSigned,                     -- bit
-                                          @processingDay = @ProcessingDay,           -- tinyint
-                                          @signDate = @SignDate,                     -- smalldatetime
-                                          @NextProcessingDate = @NextProcessingDate, -- smalldatetime
-                                          @RecurringAmount = @RecurringAmount;
+            IF @NewACHAccountId IS NOT NULL
+            BEGIN
+                EXEC Finance.UpdateAchAccount @abaNumber = @AbaNumber,                   -- varchar(9)
+                                              @accountId = @NewAccountId,                -- int
+                                              @accountNumber = @AccountNumber,           -- varchar(17)
+                                              @accountTypeId = @AccountTypeId,           -- tinyint
+                                              @achAccountId = @NewACHAccountId,          -- int
+                                              @achStatusId = @ACHStatusId,               -- tinyint
+                                              @bankAccountTypeId = @BankAccountTypeId,   -- tinyint
+                                              @isSigned = @IsSigned,                     -- bit
+                                              @processingDay = @ProcessingDay,           -- tinyint
+                                              @signDate = @SignDate,                     -- smalldatetime
+                                              @NextProcessingDate = @NextProcessingDate, -- smalldatetime
+                                              @RecurringAmount = @RecurringAmount
+
+            END
+            ELSE
+            BEGIN
+
+                -- Creating a new ACHAccount
+                EXEC Finance.InsertACHAccount @abaNumber = @AbaNumber,                   -- varchar(9)
+                                              @accountId = @NewAccountId,                -- int
+                                              @accountNumber = @AccountNumber,           -- varchar(17)
+                                              @accountTypeId = @AccountTypeId,           -- tinyint
+                                              @achAccountId = @NewACHAccountId OUT,      -- int
+                                              @achStatusId = @ACHStatusId,               -- tinyint
+                                              @bankAccountTypeId = @BankAccountTypeId,   -- tinyint
+                                              @isSigned = @IsSigned,                     -- bit
+                                              @processingDay = @ProcessingDay,           -- tinyint
+                                              @signDate = @SignDate,                     -- smalldatetime
+                                              @NextProcessingDate = @NextProcessingDate, -- smalldatetime
+                                              @RecurringAmount = @RecurringAmount;
+
+            END
 
         END;
 
@@ -3056,6 +3364,7 @@ BEGIN
     END;
 
 END;
+
 
 
 
@@ -3120,6 +3429,7 @@ BEGIN
 	
     END;
 END;
+
 
 
 GO
@@ -3281,12 +3591,13 @@ END
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE PROCEDURE [Policy].[UWMemberMove_CopyMovedMemberAccount]
+CREATE PROCEDURE [Policy].[UwMemberMove_CreateMemberAccount]
     @NewUwMemberId INT,
     @NewUwCustomerCaseID INT,
 	@MovedByUserName VARCHAR(50)
@@ -3880,6 +4191,7 @@ AS
 
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -3888,12 +4200,17 @@ GO
 CREATE PROCEDURE [Policy].[UwMemberMove_MoveMemberBalance]
     @OriginalUwMemberId INT,
     @NewUwMemberID INT,
+    @PaidThroughDateOfMove DATETIME = null,
     @MovedByUserName VARCHAR(50)
 AS
 BEGIN
     DECLARE @CreditBatchID INT,
             @DebitBatchID INT,
+            @BatchTypeId_Credit INT,
+            @BatchTypeId_Debit INT,
             @BatchStatusId TINYINT,
+            @CreditAccountID INT,
+            @DebitAccountID INT,
             @OriginalAccountID INT,
             @NewAccountID INT,
             @Balance MONEY,
@@ -3903,10 +4220,7 @@ BEGIN
             @YPercent INT,
             @ChangeDate DATETIME,
             @OriginalUwCustomerId INT,
-            @NewUwCustomerId INT,
-            @BatchCreated BIT;
-
-    SET @BatchCreated = 0;
+            @NewUwCustomerId INT
 
     SELECT @BatchStatusId = BatchStatusId
     FROM Finance.BatchStatus
@@ -3917,65 +4231,104 @@ BEGIN
     SET @YPercent = 5;
     SET @ChangeDate = GETDATE();
 
-	DECLARE @DebitAccountID INT
-	DECLARE @CreditAccountID INT
+    DECLARE @count INT;
+    SET @count = 1;
 
+    -- Retrieve Member data
+    SELECT @OriginalAccountID = OriginalMemAccount.AccountId,
+           @NewAccountID = NewMemAccount.AccountId,
+           @CurrentPTD
+               =
+    (
+        SELECT dbo.GetLastMonthDate(PayThroughDate)
+        FROM Finance.GetAdjustedPayThroughDateAccordingToCoverageMonths(
+                                                                           OriginalMemAccount.AccountId,
+                                                                           @BillingPeriod,
+                                                                           @XPercent,
+                                                                           @YPercent,
+                                                                           NULL
+                                                                       )
+    ),
+           @OriginalUwCustomerId = OldCust.UwCustomerId,
+           @NewUwCustomerId = NewCust.UwCustomerId
+    FROM Customers.UwMember AS OriginalMem
+        JOIN Finance.Account AS OriginalMemAccount
+            ON OriginalMemAccount.UwMemberId = OriginalMem.UwMemberId
+        JOIN Customers.UwCustomer AS OldCust
+            ON OriginalMem.UwCustomerId = OldCust.UwCustomerId
+        JOIN Customers.UwMember AS NewMem
+            ON NewMem.UwMemberId = @NewUwMemberID
+        JOIN Finance.Account AS NewMemAccount
+            ON NewMemAccount.UwMemberId = NewMem.UwMemberId
+        JOIN Customers.UwCustomer AS NewCust
+            ON NewMem.UwCustomerId = NewCust.UwCustomerId
+    WHERE OriginalMem.UwMemberId = @OriginalUwMemberId
+
+    -- Set Batch Types
+    SET @BatchTypeId_Credit =
+    (
+        SELECT BatchTypeId FROM Finance.BatchType WHERE Code = 'PrimaryAdjCredit'
+    )
+    SET @BatchTypeId_Debit =
+    (
+        SELECT BatchTypeId FROM Finance.BatchType WHERE Code = 'PrimaryAdjDebit'
+    )
 
  
-    --BEGIN TRANSACTION;
-    --BEGIN TRY
-
-        DECLARE @count INT;
-        SET @count = 1;
-
-        SELECT @OriginalAccountID = OriginalMemAccount.AccountId,
-               @NewAccountID = NewMemAccount.AccountId,
-               @CurrentPTD = (
-            SELECT dbo.GetLastMonthDate(PayThroughDate)
-            FROM Finance.GetAdjustedPayThroughDateAccordingToCoverageMonths(
-                                                                               OriginalMemAccount.AccountId,
-                                                                               @BillingPeriod,
-                                                                               @XPercent,
-                                                                               @YPercent,
-                                                                               NULL
-                                                                           )
-                             ),
-              
-               @OriginalUwCustomerId = OldCust.UwCustomerId,
-               @NewUwCustomerId = NewCust.UwCustomerId
-        FROM Customers.UwMember AS OriginalMem
-            JOIN Finance.Account AS OriginalMemAccount
-                ON OriginalMemAccount.UwMemberId = OriginalMem.UwMemberId
-            JOIN Customers.UwCustomer AS OldCust
-                ON OriginalMem.UwCustomerId = OldCust.UwCustomerId
-            JOIN Customers.UwMember AS NewMem
-                ON NewMem.UwMemberId = @NewUwMemberID
-			JOIN Finance.Account AS NewMemAccount
-                ON NewMemAccount.UwMemberId = NewMem.UwMemberID
-            JOIN Customers.UwCustomer AS NewCust
-                ON NewMem.UwCustomerId = NewCust.UwCustomerId
-				WHERE OriginalMem.UwMemberId = @OriginalUwMemberId
-
-IF(@OriginalAccountID IS NOT NULL AND @NewAccountID IS NOT NULL)
-BEGIN
+    IF (@OriginalAccountID IS NOT NULL AND @NewAccountID IS NOT NULL)
+    BEGIN
         SET @Balance = 0;
-        SET @Balance = ISNULL(Finance.CalcPayThroughBalance(@OriginalAccountID, NULL, @OriginalUwmemberID, @CurrentPTD), 0);
+        SET @Balance = ISNULL(Finance.CalcPayThroughBalance(@OriginalAccountID, NULL, @OriginalUwMemberId, @CurrentPTD), 0);
 
-		IF(@Balance < 0)
-		  BEGIN
-		     set @DebitAccountID = @OriginalAccountID
-			 set @CreditAccountID = @NewAccountID
-		  END
-		 ELSE IF(@Balance > 0)
-		  BEGIN
-		     set @DebitAccountID = @NewAccountID
-			 set @CreditAccountID = @OriginalAccountID
-		  END
+        -- Determine which account is credited and which one is debited
+        IF (@Balance < 0)
+        BEGIN
+            SET @DebitAccountID = @OriginalAccountID
+            SET @CreditAccountID = @NewAccountID
+        END
+        --ELSE IF (@Balance > 0)
+        --BEGIN
+        --    SET @DebitAccountID = @NewAccountID
+        --    SET @CreditAccountID = @OriginalAccountID
+        --END
 
-        IF @Balance <> 0
+
+        IF @Balance < 0 ----------------------------------------------------------- If there is napplied funds -------------------
         BEGIN
 
-            IF @BatchCreated = 0
+            --Retrieve the Credit batch if there is already an open one
+            SET @CreditBatchID =
+            (
+                SELECT TOP 1
+                       b.BatchId
+                FROM Finance.Batch AS b
+                    JOIN Finance.BatchItem AS bi
+                        ON bi.BatchId = b.BatchId
+                WHERE bi.AccountId = @CreditAccountID
+                      AND b.BatchCloseDate IS NULL
+                      AND b.BatchStatusId NOT IN ( 3, 4 )
+                      AND b.EnteredBy = 'ADMIN'
+                      AND b.BatchTypeId = @BatchTypeId_Credit
+                ORDER BY b.BatchId DESC
+            )
+
+            --Retrieve the Debit batch if there is already an open one
+            SET @DebitBatchID =
+            (
+                SELECT TOP 1
+                       b.BatchId
+                FROM Finance.Batch AS b
+                    JOIN Finance.BatchItem AS bi
+                        ON bi.BatchId = b.BatchId
+                WHERE bi.AccountId = @DebitAccountID
+                      AND b.BatchCloseDate IS NULL
+                      AND b.BatchStatusId NOT IN ( 3, 4 )
+                      AND b.EnteredBy = 'ADMIN'
+                      AND b.BatchTypeId = @BatchTypeId_Debit
+                ORDER BY b.BatchId DESC
+            )
+
+            IF (@CreditBatchID IS NULL)
             BEGIN
                 INSERT INTO Finance.Batch
                 (
@@ -3986,15 +4339,12 @@ BEGIN
                     EnteredBy,
                     IsTapeTotalModified
                 )
-                SELECT
-                    (
-                        SELECT BatchTypeId FROM Finance.BatchType WHERE Code = 'PrimaryAdjCredit'
-                    ) BatchTypeId,
-                    @BatchStatusId BatchStatusId,
-                    NULL TapeTotal,
-                    NULL BatchCloseDate,
-                    @MovedByUserName EnteredBy,
-                    0 IsTapeTotalModified;
+                SELECT @BatchTypeId_Credit,
+                       @BatchStatusId BatchStatusId,
+                       NULL TapeTotal,
+                       NULL BatchCloseDate,
+                       @MovedByUserName EnteredBy,
+                       0 IsTapeTotalModified;
 
                 SET @CreditBatchID = SCOPE_IDENTITY();
 
@@ -4007,7 +4357,10 @@ BEGIN
                 )
                 VALUES
                 (@CreditBatchID, @BatchStatusId, @ChangeDate, @MovedByUserName);
+            END
 
+            IF (@DebitBatchID IS NULL)
+            BEGIN
                 INSERT INTO Finance.Batch
                 (
                     BatchTypeId,
@@ -4017,15 +4370,12 @@ BEGIN
                     EnteredBy,
                     IsTapeTotalModified
                 )
-                SELECT
-                    (
-                        SELECT BatchTypeId FROM Finance.BatchType WHERE Code = 'PrimaryAdjDebit'
-                    ) BatchTypeId,
-                    @BatchStatusId BatchStatusId,
-                    NULL TapeTotal,
-                    NULL BatchCloseDate,
-                    @MovedByUserName EnteredBy,
-                    0 IsTapeTotalModified;
+                SELECT @BatchTypeId_Debit,
+                       @BatchStatusId BatchStatusId,
+                       NULL TapeTotal,
+                       NULL BatchCloseDate,
+                       @MovedByUserName EnteredBy,
+                       0 IsTapeTotalModified;
 
                 SET @DebitBatchID = SCOPE_IDENTITY();
 
@@ -4039,27 +4389,9 @@ BEGIN
                 VALUES
                 (@DebitBatchID, @BatchStatusId, @ChangeDate, @MovedByUserName);
 
-                SET @BatchCreated = 1;
+
             END;
 
-
-            INSERT INTO Finance.BatchItem
-            (
-                BatchId,
-                ItemNumber,
-                PaymentNumber,
-                Amount,
-                AccountId,
-                Comment
-            )
-            VALUES
-            (   @DebitBatchID,               -- BatchId - int
-                @count,                      -- ItemNumber - smallint
-                NULL,                        -- PaymentNumber - varchar(15)
-                ABS(@Balance),               -- Amount - money
-                @DebitAccountID,          -- AccountId - int
-                'Move balance to new member' -- Comment - varchar(8000)
-                );
 
             INSERT INTO Finance.BatchItem
             (
@@ -4075,56 +4407,62 @@ BEGIN
                 @count,                      -- ItemNumber - smallint
                 NULL,                        -- PaymentNumber - varchar(15)
                 ABS(@Balance),               -- Amount - money
-                @CreditAccountID,               -- AccountId - int
+                @CreditAccountID,            -- AccountId - int
                 'Move balance to new member' -- Comment - varchar(8000)
                 );
 
-         
+            INSERT INTO Finance.BatchItem
+            (
+                BatchId,
+                ItemNumber,
+                PaymentNumber,
+                Amount,
+                AccountId,
+                Comment
+            )
+            VALUES
+            (   @DebitBatchID,               -- BatchId - int
+                @count,                      -- ItemNumber - smallint
+                NULL,                        -- PaymentNumber - varchar(15)
+                ABS(@Balance),               -- Amount - money
+                @DebitAccountID,             -- AccountId - int
+                'Move balance to new member' -- Comment - varchar(8000)
+                );
 
-            EXEC Underwriting.InsertAppComment @AppCommentId = 0,                                  -- int
-                                               @AppId = NULL,                                      -- int
-                                               @UwMemberId = @OriginalUwmemberID,                          -- int
-                                               @UwMemberDependentId = NULL,                        -- int
-                                               @UnderwritingGroupId = NULL,                        -- tinyint
+            EXEC Underwriting.InsertAppComment @AppCommentId = 0,                           -- int
+                                               @AppId = NULL,                               -- int
+                                               @UwMemberId = @OriginalUwMemberId,           -- int
+                                               @UwMemberDependentId = NULL,                 -- int
+                                               @UnderwritingGroupId = NULL,                 -- tinyint
                                                @Summary = 'balance moved to linked member', -- varchar(1024)
-                                               @Details = '',                                      -- varchar(2048)
-                                               @IsCriticalComment = 0,                             -- bit
-                                               @CreationDate = @ChangeDate,                        -- datetime
-                                               @LastUpdateDate = NULL,                             -- datetime
-                                               @CreatedBy = @MovedByUserName,                      -- varchar(20)
+                                               @Details = '',                               -- varchar(2048)
+                                               @IsCriticalComment = 0,                      -- bit
+                                               @CreationDate = @ChangeDate,                 -- datetime
+                                               @LastUpdateDate = NULL,                      -- datetime
+                                               @CreatedBy = @MovedByUserName,               -- varchar(20)
                                                @UwCustomerId = @OriginalUwCustomerId;
 
 
 
-            EXEC Underwriting.InsertAppComment @AppCommentId = 0,                                    -- int
-                                               @AppId = NULL,                                        -- int
-                                               @UwMemberId = @NewUwMemberID,                         -- int
-                                               @UwMemberDependentId = NULL,                          -- int
-                                               @UnderwritingGroupId = NULL,                          -- tinyint
+            EXEC Underwriting.InsertAppComment @AppCommentId = 0,                           -- int
+                                               @AppId = NULL,                               -- int
+                                               @UwMemberId = @NewUwMemberID,                -- int
+                                               @UwMemberDependentId = NULL,                 -- int
+                                               @UnderwritingGroupId = NULL,                 -- tinyint
                                                @Summary = 'balance moved to linked member', -- varchar(1024)
-                                               @Details = '',                                        -- varchar(2048)
-                                               @IsCriticalComment = 0,                               -- bit
-                                               @CreationDate = @ChangeDate,                          -- datetime
-                                               @LastUpdateDate = NULL,                               -- datetime
-                                               @CreatedBy = @MovedByUserName,                        -- varchar(20)
+                                               @Details = '',                               -- varchar(2048)
+                                               @IsCriticalComment = 0,                      -- bit
+                                               @CreationDate = @ChangeDate,                 -- datetime
+                                               @LastUpdateDate = NULL,                      -- datetime
+                                               @CreatedBy = @MovedByUserName,               -- varchar(20)
                                                @UwCustomerId = @NewUwCustomerId;
         END;
-END
-    --    IF @@TRANCOUNT > 0
-    --    BEGIN
-    --        COMMIT TRANSACTION;
-    --    END;
-
-    --END TRY
-    --BEGIN CATCH
-    --    IF @@TRANCOUNT > 0
-    --        ROLLBACK TRANSACTION;
-
-    --END CATCH;
+    END
 
 END;
- 
- 
+
+
+
 
 
 GO
@@ -4145,6 +4483,7 @@ CREATE  PROCEDURE [Policy].[UwMemberMove_UpdateUwMemberDemographicData]
   @address1 VARCHAR(255) = NULL ,
   @address2 VARCHAR(255) = NULL ,
   @zipCode VARCHAR(5) ,  
+  @MailingAddressSameAsCoverageAddress BIT,
   @MailingAddress1 VARCHAR(255) = NULL,
   @MailingAddress2 VARCHAR(255) = NULL,  
   @MailingZipCode VARCHAR(5)= NULL,
@@ -4169,6 +4508,7 @@ AS
                 [Address1] = @address1,
                 [Address2] = @address2,
                 [ZipCode] = @zipCode,
+				[MailingAddressSameAsCoverageAddress] = @MailingAddressSameAsCoverageAddress,
                 [MailingAddress1] = @MailingAddress1,
                 [MailingAddress2] = @MailingAddress2,
                 [MailingZipCode] = @MailingZipCode,
@@ -4188,6 +4528,7 @@ AS
         --WHERE   [MemberId] = @memberId
 
     END
+
 
 
 GO
@@ -4216,6 +4557,7 @@ BEGIN
             @birthDate DATETIME,
             @address1 VARCHAR(255) = NULL,
             @address2 VARCHAR(255) = NULL,
+			@MailingAddressSameAsCoverageAddress BIT,
             @MailingAddress1 VARCHAR(255) = NULL,
             @MailingAddress2 VARCHAR(255) = NULL,
             @MailingZipCode VARCHAR(5) = NULL,
@@ -4252,9 +4594,10 @@ BEGIN
            @birthDate = um.BirthDate,
            @address1 = um.Address1,
            @address2 = um.Address2,
+		   @MailingAddressSameAsCoverageAddress = um.MailingAddressSameAsCoverageAddress,
            @MailingAddress1 = um.MailingAddress1,
            @MailingAddress2 = um.MailingAddress2,
-           @MailingZipCode = um.MailingZipCode,
+           @MailingZipCode = @DestinationZipCode,
            @memberStatusId = um.MemberStatusId
     FROM Customers.UwMember AS um
     WHERE um.UwMemberId = @SourceUwMemberId;
@@ -4273,6 +4616,7 @@ BEGIN
                                                                    @address1 = @address1,               -- varchar(255)
                                                                    @address2 = @address2,               -- varchar(255)
                                                                    @zipCode = @DestinationZipCode,                 -- varchar(5)
+																   @MailingAddressSameAsCoverageAddress = @MailingAddressSameAsCoverageAddress,
                                                                    @MailingAddress1 = @MailingAddress1, -- varchar(255)
                                                                    @MailingAddress2 = @MailingAddress2, -- varchar(255)
                                                                    @MailingZipCode = @MailingZipCode,   -- varchar(5)
@@ -4293,8 +4637,8 @@ BEGIN
 
 
         SET @Details
-            = 'Primary Member number:' + @SourceUwMemberNumber + ' has been moved back from Customer Number "'
-              + @SourceCustomerNumber + '" to Customer Number "' + @DestinationCustomerNumber + '" to member number :'
+            = 'Primary Member number:' + @SourceUwMemberNumber + ' has been moved back from Customer Number '
+              + @SourceCustomerNumber + ' to Customer Number ' + @DestinationCustomerNumber + ' to member number :'
               + @DestinationUwMemberNumber;
         -- Source UwCustomer Comment
         EXEC Underwriting.InsertAppComment @AppCommentId = 0,                 -- int
@@ -4350,6 +4694,7 @@ BEGIN
 END;
 
 
+
 GO
 SET ANSI_NULLS ON
 GO
@@ -4396,55 +4741,221 @@ BEGIN
 
 END;
 
+
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 CREATE PROCEDURE [Policy].[UwMemberMove_InsertUwMemberMoveHistory]
-@OriginalUwMemberId INT, 
-@NewUwCustomerId INT, 
-@MembershipNumber VARCHAR(22),
-@NewZipCode VARCHAR(5),
-@NewUwCustomerCaseIDs VARCHAR(150),
-@NewUwMemberId INT, 
-@NewUwMemberNumber VARCHAR(22),
-@Status BIT,
-@CreatedBy VARCHAR(20),
-@CreationDate DATETIME,
-@UwMemberMoveHistoryId INT OUT 
+    @OriginalUwMemberId INT,
+    @MembershipNumber VARCHAR(22),
+    @NewUwMemberId INT,
+    @Status BIT,
+    @CreatedBy VARCHAR(20),
+    @CreationDate DATETIME,
+    @UwMemberMoveHistoryId INT OUT
 AS
 BEGIN
+    DECLARE @IsMoveBack BIT,
+            @LastNewUwMemberId INT
 
-	INSERT INTO [Policy].[UwMemberMoveHistory]
-           ([OriginalUwMemberId]
-           ,[NewUwCustomerId]
-           ,[MembershipNumber]
-           ,[NewZipCode]
-           ,[NewUwCustomerCaseIDs]
-           ,[NewUwMemberId]
-           ,[NewUwMemberNumber]
-           ,[Status]
-           ,[CreatedBy]
-           ,[CreationDate])
-     VALUES
-           (@OriginalUwMemberId,
-		    @NewUwCustomerId, 
-			@MembershipNumber,
-			@NewZipCode,
-			@NewUwCustomerCaseIDs,
-            @NewUwMemberId,
-            @NewUwMemberNumber,
-			@Status,
-			@CreatedBy,
-			@CreationDate
-			)
+    SET @IsMoveBack = 0
+    SET @LastNewUwMemberId =
+    (
+        SELECT TOP 1
+               NewUwMemberId
+        FROM [Policy].[UwMemberMoveHistory] AS ummh
+        WHERE ummh.OriginalUwMemberId = @NewUwMemberId -- newmember
+              AND ummh.NewUwMemberId = @OriginalUwMemberId
+              AND IsMoveBack = 0
+			  AND [Status] = 1
+              AND NOT EXISTS
+        (
+            SELECT ummh_inner.UwMemberMoveHistoryId
+            FROM [Policy].[UwMemberMoveHistory] AS ummh_inner
+            WHERE ummh_inner.NewUwMemberId =  ummh.OriginalUwMemberId 
+                  AND ummh_inner.OriginalUwMemberId = ummh.NewUwMemberId 
+                  AND ummh_inner.IsMoveBack = 1
+                  AND ummh.UwMemberMoveHistoryId < ummh_inner.UwMemberMoveHistoryId
+				  AND ummh_inner.[Status] = 1
+        )
+        ORDER BY UwMemberMoveHistoryId DESC
+    )
+ 
+    IF (@LastNewUwMemberId = @OriginalUwMemberId)
+    BEGIN
+        SET @IsMoveBack = 1
+    END
+    INSERT INTO [Policy].[UwMemberMoveHistory]
+    (
+        [OriginalUwMemberId],
+        [MembershipNumber],
+        [NewUwMemberId],
+        [IsMoveBack],
+        [Status],
+        [CreatedBy],
+        [CreationDate]
+    )
+    VALUES
+    (@OriginalUwMemberId, @MembershipNumber, @NewUwMemberId, @IsMoveBack, @Status, @CreatedBy, @CreationDate)
 
-			SET @UwMemberMoveHistoryId = SCOPE_IDENTITY()
+    SET @UwMemberMoveHistoryId = SCOPE_IDENTITY()
+
+    DECLARE @ExchangeMarketingSegmentId INT,
+            @OffExchangeMarketingSegmentId INT
+    SET @ExchangeMarketingSegmentId = 6 -- Individual Exchange Market
+    SET @OffExchangeMarketingSegmentId = 7 -- Individual Off-Exchange Market
+
+    -- if move from Exchange to Off-Exchange then Log in tabe dbo.UwMemberMoveMapping  
+    IF EXISTS
+    (
+        SELECT um.UwMemberId
+        FROM Customers.UwMember AS um
+            JOIN Customers.UwCustomer AS uc
+                ON uc.UwCustomerId = um.UwCustomerId
+        WHERE uc.MarketingSegmentId = @ExchangeMarketingSegmentId
+              AND um.UwMemberId = @OriginalUwMemberId
+    )
+       AND EXISTS
+    (
+        SELECT um.UwMemberId
+        FROM Customers.UwMember AS um
+            JOIN Customers.UwCustomer AS uc
+                ON uc.UwCustomerId = um.UwCustomerId
+        WHERE uc.MarketingSegmentId = @OffExchangeMarketingSegmentId
+              AND um.UwMemberId = @NewUwMemberId
+    )
+    BEGIN
+
+        INSERT INTO dbo.UwMemberMoveMapping
+        (
+            ExchangeUwMemberID,
+            OffExchangeUwMemberID,
+            CreationDate,
+            BatchProcessed,
+            MoveCategory
+        )
+        VALUES
+        (   @OriginalUwMemberId,                                               -- ExchangeUwMemberID - int
+            @NewUwMemberId,                                                    -- OffExchangeUwMemberID - int
+            GETDATE(),                                                         -- CreationDate - datetime
+            0,                                                                 -- BatchProcessed - bit
+            'MemberMoveByMemberMoveScreen_' + CONVERT(VARCHAR, GETDATE(), 112) -- MoveCategory - varchar(100) -- ManualMemberMove_
+            )
+
+    END
 END
 
 
- 
+
+
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [Customers].[GetUwMemberByPrimaryKey] @UwMemberId INT
+AS 
+    BEGIN
+    
+       
+        SELECT  COUNT(1) AS TotalRecords
+		FROM Customers.[UwMember]
+        WHERE   UwMemberId = @UwMemberId
+
+        DECLARE @MoveFromMemberNumber NVARCHAR(22), @MoveToMemberNumber NVARCHAR(22)
+		SET @MoveFromMemberNumber = Policy.GetMemberMoveFrom_MemberNumber(@UwMemberId)
+		SET @MoveToMemberNumber = Policy.GetMemberMoveTo_MemberNumber(@UwMemberId)
+		IF(@MoveFromMemberNumber = @MoveToMemberNumber )
+		  BEGIN
+		      SET @MoveFromMemberNumber = NULL
+		      SET @MoveToMemberNumber = null
+		  END
+
+        SELECT  UwMemberId ,
+                UwCustomerId ,
+                FirstName ,
+                ExchangeAlternateID ,
+                MiddleInitial ,
+                LastName ,
+                BirthDate ,
+                Gender ,
+                Address1 ,
+                Address2 ,
+                UwMember.ZipCode ,
+                MaritalStatusId ,
+                SSN ,
+                Phone ,
+                Fax ,
+                EmailAddress ,
+                Customers.[UwMember].MemberNumber ,
+                MemberId ,
+                UwCustomerClassId ,
+                UwCustomerDivisionId ,
+                EmployeeTypeId ,
+                HiringDate ,
+                WeeklyHours ,
+                AnnualSalary ,
+                CobraContinueCoverage ,
+                CobraElectionForm ,
+                CobraOnPriorBill ,
+                CobraQualifyingEventId ,
+                CobraDateOfQualifyingEvent ,
+                CobraMonthsEligible ,
+                CobraMonthsRemaining ,
+                IsSocialSecurityDocumentationProvided ,
+                IsSmoker ,
+                IsResponsibleParty ,
+                CobraEffectiveFromDate ,
+                CobraEffectiveToDate ,
+                CobraTypeId ,
+                MemberStatusId ,
+                ReportingPreference ,
+                RoasterNumber ,
+                MembershipNumber ,
+                AddressChangeDate ,
+                CountyId ,
+                RatingAreaNumber ,
+                ResponsiblePartyFirstName ,
+                ResponsiblePartyMiddleInitial ,
+                ResponsiblePartyLastName ,
+                ResponsiblePartySSN ,
+                MailingAddress1 ,
+                MailingAddress2 ,
+                MailingZipCode ,
+                MailingAddressSameAsCoverageAddress ,
+                AlternatePhone ,
+                @MoveFromMemberNumber AS MoveFromMemberNumber ,
+                @MoveToMemberNumber AS MoveToMemberNumber ,
+                UwMember.CoverageAddressChangedByHIAS AS CoverageAddressChangedByHIAS ,
+                UwMember.CoverageAddressLastChangeDateByHIAS AS CoverageAddressLastChangeDateByHIAS ,
+                UwMember.MailingAddressChangedByHIAS AS MailingAddressChangedByHIAS ,
+                UwMember.MailingAddressLastChangeDateByHIAS AS MailingAddressLastChangeDateByHIAS,
+				LifeCoverageInvoiceBillingCycleTypeId,
+				PrimaryPreferenceInReceivingInvoicesTypeId
+        FROM    Customers.[UwMember]
+                LEFT JOIN dbo.ZipCode z ON z.ZipCode = UwMember.ZipCode
+                --OUTER APPLY ( SELECT TOP 1
+                --                        inner_uwm.MemberNumber
+                --              FROM      dbo.UwMemberMoveMapping AS mmm
+                --                        INNER JOIN Customers.UwMember AS inner_uwm ON mmm.ExchangeUwMemberID = inner_uwm.UwMemberId
+                --              WHERE     mmm.OffExchangeUwMemberID = Customers.[UwMember].UwMemberId
+                --              ORDER BY  mmm.CreationDate DESC
+                --            ) AS MemberMoveFrom
+                --OUTER APPLY ( SELECT TOP 1
+                --                        inner_uwm.MemberNumber
+                --              FROM      dbo.UwMemberMoveMapping AS mmm
+                --                        INNER JOIN Customers.UwMember AS inner_uwm ON mmm.OffExchangeUwMemberID = inner_uwm.UwMemberId
+                --              WHERE     mmm.ExchangeUwMemberID = Customers.[UwMember].UwMemberId
+                --              ORDER BY  mmm.CreationDate DESC
+                --            ) AS MemberMoveTo
+        WHERE   UwMemberId = @UwMemberId;
+                                
+    END;
+
+
 
 
 GO

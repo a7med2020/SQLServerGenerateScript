@@ -27,3 +27,4 @@ Policy.UwMemberMove_UpdateUwMemberDemographicData
 Policy.UwMemberMove_MoveMemberBack
 Policy.UwMemberMove_MoveMember
 Policy.UwMemberMove_InsertUwMemberMoveHistory
+Customers.GetUwMemberByPrimaryKey

@@ -2,3 +2,5 @@
 Rating.MarketSegmentRTMTable
 Policy.MoveMemberCaseAgencyHistoryConfiguration
 Policy.UwMemberMoveHistory
+CC.SubscriptionUpdateQueue
+CC.SubscriptionUpdateQueueStatus

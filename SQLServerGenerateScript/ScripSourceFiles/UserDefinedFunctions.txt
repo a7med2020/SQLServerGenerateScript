@@ -1,8 +1,9 @@
 ﻿Policy.MapUwCustomerClassFromMovedMemberToNewMember
 Policy.ValidateEffectiveDateAgainstCustomerCase
 Policy.CheckIfZIPCodeIntheCutomerState
-Policy.IsMemberAlreadyMoved
+Policy.IsMemberValidToMove
 Policy.IsCustomerCaseInsuredTypeGroup
 Policy.GetMemberMoveFrom_MemberNumber
 Policy.GetMemberMoveTo_MemberNumber
 Policy.IsMemberExistsInSelectedDestination
+Policy.IsAllMemberCasesTerminated
